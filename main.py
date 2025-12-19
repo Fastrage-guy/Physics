@@ -1,30 +1,109 @@
+import sys
+import time
 import pygame
-from random import randint
-from collisions import *
-from vector import *
-from body import *
+from random import randint, uniform
 from config import *
-import world
+from body import *
+from vector import *
 pygame.init()
 
-window = pygame.display.set_mode(RESOLUTION)
+window = pygame.display.set_mode(WINDOWSIZE)
 clock = pygame.time.Clock()
+bodies = []
 
-world.AddBody(Body(Vector(0, 0), 0.5, GenerateBox(50, 50), 0.5, False))
-
-for i in range(64):
-    shape = randint(0, 1)
-    if(shape == 0):
-        shape = GenerateBox(randint(25, 50), randint(25, 50))
-    elif(shape == 1):
-        shape = GenerateCircle(randint(10, 25))
+def initBodies():
+    global bodies
+    bodies = []
+    bodies.append(Body(Vector(-HALFWIDTH / 2, 0), generateBox(50, 50), 10, color=(51, 170, 255)))
+    bodies.append(Body(Vector(HALFWIDTH / 2, 0), generateBox(50, 50), 10, color=(255, 101, 101)))
     
-    world.AddBody(Body(Vector(randint(-HALFWIDTH, HALFWIDTH), randint(-HALFHEIGHT, HALFHEIGHT)), 0.5, shape, 0.5, False))
+    #bodies.append(Body(Vector(0, 125), generateBox(100, 250), 10))
+    #bodies.append(Body(Vector(100, -125), generateVertices(16, 50), 10))
+    #bodies.append(Body(Vector(-100, -125), generateVertices(16, 50), 10))
 
 
+def toScreen(v):
+    return [HALFWIDTH + v.x, HALFHEIGHT - v.y]
+
+def findCenter(vertices):
+    sumX = 0
+    sumY = 0
+    verticesLen = len(vertices)
+
+    for v in vertices:
+        sumX += v.x
+        sumY += v.y
+
+    return Vector(sumX / verticesLen, sumY / verticesLen)
+
+def projectVertices(vertices, axis):
+    minimum = float('inf')
+    maximum = float('-inf')
+
+    for v in vertices:
+        proj = Vector.dot(v, axis)
+        if(proj < minimum): minimum = proj
+        if(proj > maximum): maximum = proj
+    
+    return [minimum, maximum]
+
+def intersectBodies(polyA, polyB):
+    normal = Vector(0)
+    depth = float('inf')
+
+    lenA = len(polyA.vertices)
+    lenB = len(polyB.vertices)
+
+    for i in range(lenA):
+        va = polyA.vertices[i]
+        vb = polyA.vertices[(i + 1) % lenA]
+        edge = vb - va
+        axis = Vector(-edge.y, edge.x).normalized()
+        minA, maxA = projectVertices(polyA.vertices, axis)
+        minB, maxB = projectVertices(polyB.vertices, axis)
+
+        if(minA >= maxB or minB >= maxA):
+            return (False, Vector(-1), -1)
+        
+        axisDepth = min(maxB - minA, maxA - minB)
+        if(axisDepth < depth):
+            depth = axisDepth
+            normal = axis
+
+    
+    for i in range(lenB):
+        va = polyB.vertices[i]
+        vb = polyB.vertices[(i + 1) % lenB]
+        edge = vb - va
+        axis = Vector(-edge.y, edge.x).normalized()
+        minA, maxA = projectVertices(polyB.vertices, axis)
+        minB, maxB = projectVertices(polyA.vertices, axis)
+
+        if(minA >= maxB or minB >= maxA):
+            return (False, Vector(-1), -1)
+        
+        axisDepth = min(maxB - minA, maxA - minB)
+        if(axisDepth < depth):
+            depth = axisDepth
+            normal = axis
+
+    centerA = findCenter(polyA.vertices)
+    centerB = findCenter(polyB.vertices)
+    direction = centerB - centerA
+
+    if(Vector.dot(direction, normal) < 0):
+        normal = -normal
+
+    return (True, normal, depth)
+
+
+initBodies()
 running = True
 while(running):
     dt = clock.tick() / 1000
+
+    pygame.display.set_caption("FPS: " + str(1 // dt) if dt > 0 else "INF")
+
     keys = pygame.key.get_pressed()
     for event in pygame.event.get():
         if(event.type == pygame.QUIT):
@@ -32,25 +111,55 @@ while(running):
         elif(event.type == pygame.KEYDOWN):
             if(event.key == pygame.K_ESCAPE):
                 running = False
+            elif(event.key == pygame.K_r):
+                initBodies()
     
-    window.fill((255, 255, 255))
+    window.fill((51, 51, 51))
 
-    magnitude = dt * 250
-    dx = 0
-    dy = 0
-    if(keys[pygame.K_UP]): dy += 1
-    if(keys[pygame.K_DOWN]): dy -= 1
-    if(keys[pygame.K_RIGHT]): dx += 1
-    if(keys[pygame.K_LEFT]): dx -= 1
-    direction = Vector(dx, dy)
+    moveAmount = Vector(0)
+    speed = 1000
+    if(keys[pygame.K_d]): moveAmount.x += 1
+    if(keys[pygame.K_a]): moveAmount.x -= 1
+    if(keys[pygame.K_w]): moveAmount.y += 1
+    if(keys[pygame.K_s]): moveAmount.y -= 1
+    bodies[0].accelerate(moveAmount * speed)
+    
+    moveAmount = Vector(0)
+    speed = 1000
+    if(keys[pygame.K_RIGHT]): moveAmount.x += 1
+    if(keys[pygame.K_LEFT]): moveAmount.x -= 1
+    if(keys[pygame.K_UP]): moveAmount.y += 1
+    if(keys[pygame.K_DOWN]): moveAmount.y -= 1
+    bodies[1].accelerate(moveAmount * speed)
 
-    world.bodies[0].Move(direction * magnitude)
-    world.Step(dt)
+    for body in bodies:
+        body.step(dt)
+    
+    for i in bodies:
+        for j in bodies:
+            if i == j: continue
+            intersects, normal, depth = intersectBodies(i, j)
+            if(intersects):
+                i.move(-normal * depth / 2)
+                j.move(normal * depth / 2)
 
-    for b in world.bodies:
-        if(b.shapetype == "Polygon"):
-            pygame.draw.polygon(window, (0, 0, 0), [v.toScreen() for v in b.shape.vertices])
-        elif(b.shapetype == "Circle"):
-            pygame.draw.circle(window, (0, 0, 0), b.position.toScreen(), b.shape.radius)
+                relativeVelocity = j.velocity - i.velocity
+
+                if (not Vector.dot(relativeVelocity, normal) > 0):
+                    e = min(i.restitution, j.restitution)
+
+                    _j = -(1 + e) * Vector.dot(relativeVelocity, normal)
+                    _j /= i.mass + j.mass
+
+                    impulse = normal * _j
+
+                    i.velocity -= impulse * j.mass
+                    j.velocity += impulse * i.mass
+
+                    print("BAM")
+
+    for body in bodies:
+        body.updateVertices()
+        pygame.draw.polygon(window, body.color, [toScreen(v) for v in body.vertices])
 
     pygame.display.flip()

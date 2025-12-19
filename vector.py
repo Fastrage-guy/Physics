@@ -1,5 +1,11 @@
 import math
-from config import *
+
+class Transform:
+    def __init__(self, position, angle):
+        self.position = position
+        self.angle = angle
+        self.sin = math.sin(angle)
+        self.cos = math.cos(angle)
 
 class Vector:
     def __init__(self, x, y=None):
@@ -57,9 +63,6 @@ class Vector:
     
     def as_list(self):
         return [self.x, self.y]
-    
-    def toScreen(self):
-        return [HALFWIDTH + self.x, HALFHEIGHT - self.y]
 
     @staticmethod
     def transform(vec, transform):
