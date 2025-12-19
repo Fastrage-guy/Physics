@@ -3,12 +3,18 @@ from vector import *
 
 
 class Body:
-    def __init__(self, position, vertices, mass, restitution=0.5, color=(0, 0, 0)):
+    def __init__(self, position, vertices, mass, restitution=0.5, color=(0, 0, 0), static=False):
         
         self.shape = [v for v in vertices]
-        self.mass = mass
         self.restitution = restitution
         self.color = color
+        self.static = static
+        self.mass = mass
+
+        if(self.static):
+            self.invmass = 0
+        else:
+            self.invmass = 1 / mass
 
         # current state
         self.vertices = [v for v in vertices]

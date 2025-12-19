@@ -15,11 +15,16 @@ def initBodies():
     global bodies
     bodies = []
     bodies.append(Body(Vector(-HALFWIDTH / 2, 0), generateBox(50, 50), 10, color=(51, 170, 255)))
-    bodies.append(Body(Vector(HALFWIDTH / 2, 0), generateBox(50, 50), 10, color=(255, 101, 101)))
     
-    #bodies.append(Body(Vector(0, 125), generateBox(100, 250), 10))
-    #bodies.append(Body(Vector(100, -125), generateVertices(16, 50), 10))
-    #bodies.append(Body(Vector(-100, -125), generateVertices(16, 50), 10))
+    for i in range(16):
+        bodies.append(Body(Vector(randint(-HALFWIDTH//2, HALFWIDTH//2), randint(-HALFHEIGHT//2, HALFHEIGHT//2)), generateVertices(randint(3, 10), randint(25, 50)), 1, color=(randint(0, 255), randint(0, 255), randint(0, 255))))
+    
+    bodies.append(Body(Vector(0, -HALFHEIGHT / 2), generateBox(WIDTH * 0.75, 25), -1, 0.5, static=True))
+
+    bodies.append(Body(Vector(-WIDTH, 0), generateBox(WIDTH, HEIGHT), -1, 0.5, static=True))
+    bodies.append(Body(Vector(WIDTH, 0), generateBox(WIDTH, HEIGHT), -1, 0.5, static=True))
+    bodies.append(Body(Vector(0, HEIGHT), generateBox(WIDTH*3, HEIGHT), -1, 0.5, static=True))
+    bodies.append(Body(Vector(0, -HEIGHT), generateBox(WIDTH*3, HEIGHT), -1, 0.5, static=True))
 
 
 def toScreen(v):
@@ -135,28 +140,30 @@ while(running):
     for body in bodies:
         body.step(dt)
     
-    for i in bodies:
-        for j in bodies:
-            if i == j: continue
-            intersects, normal, depth = intersectBodies(i, j)
+    for a in bodies:
+        for b in bodies:
+            if a == b or (a.static and b.static): continue
+            intersects, normal, depth = intersectBodies(a, b)
             if(intersects):
-                i.move(-normal * depth / 2)
-                j.move(normal * depth / 2)
+                if(a.static):
+                    b.move(normal * depth)
+                elif(b.static):
+                    a.move(-normal * depth)
+                else:
+                    a.move(-normal * depth / 2)
+                    b.move(normal * depth / 2)
 
-                relativeVelocity = j.velocity - i.velocity
+                relativeVelocity = b.velocity - a.velocity
+                if(not Vector.dot(relativeVelocity, normal) > 0):
+                    e = min(a.restitution, b.restitution)
 
-                if (not Vector.dot(relativeVelocity, normal) > 0):
-                    e = min(i.restitution, j.restitution)
+                    j = -(1 + e) * Vector.dot(relativeVelocity, normal)
+                    j /= a.invmass + b.invmass
 
-                    _j = -(1 + e) * Vector.dot(relativeVelocity, normal)
-                    _j /= i.mass + j.mass
+                    impulse = normal * j
 
-                    impulse = normal * _j
-
-                    i.velocity -= impulse * j.mass
-                    j.velocity += impulse * i.mass
-
-                    print("BAM")
+                    a.velocity -= impulse * a.invmass
+                    b.velocity += impulse * b.invmass
 
     for body in bodies:
         body.updateVertices()
