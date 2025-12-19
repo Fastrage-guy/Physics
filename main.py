@@ -1,67 +1,60 @@
-from physmath import *
-from collisions import *
-from body import *
-from common import *
-from camera import *
 import pygame
-import random
+from collision import *
+from body import *
+from shapes import *
+from config import *
+from util import *
 pygame.init()
 
-window = pygame.display.set_mode(SCREENSIZE)
+window = pygame.display.set_mode(WINSIZE)
 clock = pygame.time.Clock()
-camera = Camera(0, 0)
 
-bodies = [Body(Vector(0, 0), ShapeType.circle, 25, 10)]
+BODIES = []
+BODIES.append(Body(0, 0, 10, comp=[Circle(0, 0, 50), Circle(0, -100, 50), Polygon(0, 100, generateVertices(6, 25))]))
+BODIES.append(Body(0, 200, 10, comp=[Circle(0, 0, 50), Circle(0, -100, 50), Polygon(0, 100, generateVertices(6, 25))]))
 
-for i in range(500):
-    bodies.append(Body(Vector(random.uniform(-1, 1) * WIDTH, random.uniform(-1, 1) * HEIGHT), ShapeType.polygon, generateVertices(random.randint(3, 10), random.randint(25, 50)), 10, color=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))))
+def toScreen(p):
+    return [HALFWIDTH + p.x, HALFHEIGHT - p.y]
 
-
-dragging = False
-prevMouse = [HALFWIDTH, HALFHEIGHT]
 running = True
-while(running):
-    dt = clock.tick()
+while running:
+    clock.tick(60)
     events = pygame.event.get()
+    keys = pygame.key.get_pressed()
     mouse = pygame.mouse.get_pos()
-    for event in events:
-        if(event.type == pygame.QUIT):
-            running = False
-        elif(event.type == pygame.KEYDOWN):
-            if(event.key == pygame.K_ESCAPE):
-                running = False
-        elif event.type == pygame.MOUSEWHEEL:
-            if event.y < 0:
-                camera.x -= (HALFWIDTH - mouse[0]) / camera.zoom 
-                camera.y += (HALFHEIGHT - mouse[1]) / camera.zoom
-                camera.zoom /= 1.1
-                camera.x += (HALFWIDTH - mouse[0]) / camera.zoom 
-                camera.y -= (HALFHEIGHT - mouse[1]) / camera.zoom
-            else:
-                camera.x -= (HALFWIDTH - mouse[0]) / camera.zoom 
-                camera.y += (HALFHEIGHT - mouse[1]) / camera.zoom
-                camera.zoom *= 1.1
-                camera.x += (HALFWIDTH - mouse[0]) / camera.zoom 
-                camera.y -= (HALFHEIGHT - mouse[1]) / camera.zoom
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                dragging = True
-                prevMouse = mouse
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1:
-                dragging = False
-    
-    if(dragging):
-        camera.x -= (mouse[0] - prevMouse[0]) / camera.zoom
-        camera.y += (mouse[1] - prevMouse[1]) / camera.zoom
-        prevMouse = [mouse[0], mouse[1]]
-    
-    window.fill((255, 255, 255))
 
-    for b in bodies:
-        if(b.shapetype == ShapeType.polygon):
-            pygame.draw.polygon(window, b.color, camera.VerticesToScreen(b.vertices))
-        elif(b.shapetype == ShapeType.circle):
-            pygame.draw.circle(window, b.color, camera.VectorToScreen(b.position), b.radius * camera.zoom)
+    for event in events:
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+
+    window.fill(CLEARCOLOR)
+
+    for b in BODIES:
+        b.update()
+
+    for a in BODIES:
+        for b in BODIES:
+            if a != b:
+                result = collide(a, b)
+                if result:
+                    print("intersected")
+                else:
+                    print("didn't intersect")
+    
+    #for c in collisions:
+    #    c.resolvePenetration()
+    #    c.resolveVelocity()
+    
+    for b in BODIES:
+        b.rotate(0.025)
+        for c in b.composition:
+            data = c.getData()
+            if(isinstance(c, Circle)):
+                pygame.draw.circle(window, b.color, toScreen(data[0]), data[1])
+            if(isinstance(c, Polygon)):
+                pygame.draw.polygon(window, b.color, [toScreen(v) for v in data])
 
     pygame.display.flip()
