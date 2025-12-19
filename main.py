@@ -11,14 +11,14 @@ pygame.init()
 window = pygame.display.set_mode(WINDOWSIZE)
 clock = pygame.time.Clock()
 
-gravity = Vector(0, -250)
 scene = Scene()
+scene.gravity = Vector(0, -500)
 
 def initBodies():
     scene = Scene()
     scene.add(Body(Vector(-HALFWIDTH / 2, 0), generateBox(50, 50), 10, color=(51, 170, 255)))
     
-    for i in range(16):
+    for i in range(4):
         scene.add(Body(Vector(randint(-HALFWIDTH//2, HALFWIDTH//2), randint(-HALFHEIGHT//2, HALFHEIGHT//2)), generateVertices(randint(3, 10), randint(25, 50)), 1, color=(randint(0, 255), randint(0, 255), randint(0, 255))))
 
     scene.add(Body(Vector(0, -HALFHEIGHT / 2), generateBox(WIDTH * 0.75, 25), -1, 0.5, static=True))
@@ -55,7 +55,7 @@ while(running):
     moveAmount = Vector(keys[pygame.K_d] - keys[pygame.K_a], keys[pygame.K_w] - keys[pygame.K_s])
     scene.bodies[0].accelerate(moveAmount * acceleration)
 
-    scene.step(dt, 1)
+    scene.step(dt)
 
     for body in scene.bodies:
         body.updateVertices()
