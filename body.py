@@ -1,10 +1,13 @@
 import math
 from vector import *
 
+class AABB:
+    def __init__(self, minimum=Vector(0), maximum=Vector(0)):
+        self.minimum = minimum
+        self.maximum = maximum
 
 class Body:
     def __init__(self, position, vertices, mass, restitution=0.5, color=(0, 0, 0), static=False):
-        
         self.shape = [v for v in vertices]
         self.restitution = restitution
         self.color = color
@@ -27,12 +30,27 @@ class Body:
 
         # initializing
         self.updateVertices()
+        self.updateAABB()
 
     def rotate(self, amount):
         self.rotation += amount
 
     def move(self, amount):
         self.position += amount
+
+    def updateAABB(self):
+        minimum = Vector(float('inf'))
+        maximum = Vector(float('-inf'))
+
+        for v in self.vertices:
+            if(v.x < minimum.x): minimum.x = v.x
+            if(v.y < minimum.y): minimum.y = v.y
+
+            if(v.x > maximum.x): maximum.x = v.x
+            if(v.y > maximum.y): maximum.y = v.y
+        
+        self.aabb = AABB(minimum, maximum)
+        return self.aabb
 
     def updateVertices(self):
         transform = Transform(self.position, self.rotation)
@@ -43,7 +61,9 @@ class Body:
     def accelerate(self, amount):
         self.acceleration = amount
 
-    def step(self, dt):
+    def step(self, dt, gravity):
+        if(self.static): return
+        self.velocity += gravity * dt
         self.position += self.velocity * dt + (self.acceleration * dt ** 2)/2
         self.velocity += self.acceleration * dt
     
