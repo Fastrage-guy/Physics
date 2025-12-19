@@ -1,21 +1,30 @@
 import pygame
-import random
+from random import randint
 from collisions import *
 from vector import *
 from body import *
-from common import *
+from config import *
+import world
 pygame.init()
 
 window = pygame.display.set_mode(RESOLUTION)
 clock = pygame.time.Clock()
 
-bodies = []
-for i in range(128):
-    bodies.append(Body(Vector(random.randint(-HALFWIDTH, HALFWIDTH), random.randint(-HALFHEIGHT, HALFHEIGHT)), 0.5, Circle(random.randint(25, 25)), 0.5, False))
+world.AddBody(Body(Vector(0, 0), 0.5, GenerateBox(50, 50), 0.5, False))
+
+for i in range(64):
+    shape = randint(0, 1)
+    if(shape == 0):
+        shape = GenerateBox(randint(25, 50), randint(25, 50))
+    elif(shape == 1):
+        shape = GenerateCircle(randint(10, 25))
+    
+    world.AddBody(Body(Vector(randint(-HALFWIDTH, HALFWIDTH), randint(-HALFHEIGHT, HALFHEIGHT)), 0.5, shape, 0.5, False))
+
 
 running = True
 while(running):
-    dt = clock.tick()
+    dt = clock.tick() / 1000
     keys = pygame.key.get_pressed()
     for event in pygame.event.get():
         if(event.type == pygame.QUIT):
@@ -25,18 +34,23 @@ while(running):
                 running = False
     
     window.fill((255, 255, 255))
-    bodies[0].position += Vector(keys[pygame.K_RIGHT] - keys[pygame.K_LEFT], keys[pygame.K_UP] - keys[pygame.K_DOWN]) * Vector(dt * 0.5)
 
-    for i in bodies:
-        for j in bodies:
-            if i == j: continue
-            intersects, normal, depth = intersectCircles(i, j)
-            if(intersects):
-                i.Move(normal * depth / 2)
-                j.Move(-normal * depth / 2)
+    magnitude = dt * 250
+    dx = 0
+    dy = 0
+    if(keys[pygame.K_UP]): dy += 1
+    if(keys[pygame.K_DOWN]): dy -= 1
+    if(keys[pygame.K_RIGHT]): dx += 1
+    if(keys[pygame.K_LEFT]): dx -= 1
+    direction = Vector(dx, dy)
 
-    for b in bodies:
-        if(b.shapetype == "Circle"):
+    world.bodies[0].Move(direction * magnitude)
+    world.Step(dt)
+
+    for b in world.bodies:
+        if(b.shapetype == "Polygon"):
+            pygame.draw.polygon(window, (0, 0, 0), [v.toScreen() for v in b.shape.vertices])
+        elif(b.shapetype == "Circle"):
             pygame.draw.circle(window, (0, 0, 0), b.position.toScreen(), b.shape.radius)
 
     pygame.display.flip()

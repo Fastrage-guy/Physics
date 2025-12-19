@@ -1,5 +1,5 @@
 import math
-from common import *
+from config import *
 
 class Vector:
     def __init__(self, x, y=None):
@@ -37,6 +37,9 @@ class Vector:
     def __neg__(self):
         return Vector(-self.x, -self.y)
 
+    def __repr__(self):
+        return "[x: " + str(self.x) + ", y: " + str(self.y) + "]"
+
     def equals(self, other):
         return self.x == other.x and self.y == other.y
 
@@ -57,6 +60,13 @@ class Vector:
     
     def toScreen(self):
         return [HALFWIDTH + self.x, HALFHEIGHT - self.y]
+
+    @staticmethod
+    def transform(vec, transform):
+        return Vector(
+            transform.cos * vec.x - transform.sin * vec.y + transform.position.x, 
+            transform.sin * vec.x + transform.cos * vec.y + transform.position.y
+        )
 
     @staticmethod
     def distance(subject, other):
